@@ -20,6 +20,9 @@ public interface Usermapper {
     //注册账号
     @Insert("INSERT INTO sys_user(username, password, name, role, college, class_name) VALUES(#{username}, #{password}, #{name}, #{role}, #{college}, #{classname})")
     Integer insertUser(User user);
+    //修改密码
+    @Insert("update sys_user set password=#{password} where id=#{id}")
+    Integer updatePassword(User user);
     //查询用户信息
     @Select("select * from sys_user where id=#{id}")
     User selectUserById(Integer id);

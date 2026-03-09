@@ -13,6 +13,8 @@ public interface UserService {
     boolean register(User user);
     //查询用户名是否被注册过
     boolean selectUsername(String  username);
+    //修改密码
+    void updatePassword(Integer id, String oldPassword, String newPassword);
     //按照id查询用户信息
     User selectUserById(Integer id);
 

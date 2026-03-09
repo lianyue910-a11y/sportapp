@@ -39,8 +39,7 @@ public class AdminController {
         return Result.success(adminService.getCurrentSemester());
     }
 
-    // --- 2. 教师分配 ---
-
+    // 2. 教师分配
     @GetMapping("/bind/init")
     public Result getInitData() {
         return Result.success(adminService.getBindInitData());
@@ -85,6 +84,8 @@ public class AdminController {
         adminService.addUser(user);
         return Result.success("新增成功");
     }
+
+    // 同步缓存和数据库里面的数据，防止排行榜数据异常
     @GetMapping("/syncRedis")
     public Result syncRedis(@RequestParam String semester) {
         adminService.syncDataToRedis(semester);

@@ -58,7 +58,6 @@ public class Adminimpl implements AdminService {
             // 缓存命中：直接转成对象返回
             return JSON.parseObject(json, SemesterConfig.class);
         }
-
         // 2. 缓存未命中：查数据库
         SemesterConfig config = adminMapper.selectCurrentSemester();
         // 3. 回填 Redis (设置 1 小时过期，防止死数据)

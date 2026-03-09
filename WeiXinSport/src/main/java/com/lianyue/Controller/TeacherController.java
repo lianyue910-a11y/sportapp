@@ -4,6 +4,7 @@ import com.lianyue.Service.TeacherService;
 import com.lianyue.pojo.Appeal;
 import com.lianyue.pojo.Rank;
 import com.lianyue.pojo.Result;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -33,8 +34,9 @@ public class TeacherController {
         }
     }
     @PostMapping("/interact")
-    public Result interact(@RequestBody Map<String, Object> map) {
-        Integer teacherId = (Integer) map.get("teacherId");
+    public Result interact(@RequestBody Map<String, Object> map, HttpServletRequest request) {
+        // 安全获取当前老师ID
+        Integer teacherId = (Integer) request.getAttribute("userId");
         Integer studentId = (Integer) map.get("studentId");
         String type = (String) map.get("type");
         try {
@@ -46,7 +48,9 @@ public class TeacherController {
     }
 
     @GetMapping("/student/list")
-    public Result getStudentList(@RequestParam Integer teacherId, @RequestParam String semester) {
+    public Result getStudentList(@RequestParam String semester, HttpServletRequest request) {
+        // 安全获取当前老师ID
+        Integer teacherId = (Integer) request.getAttribute("userId");
         List<Rank> list = teacherService.getMyStudents(teacherId, semester);
         return Result.success(list);
     }

@@ -30,12 +30,16 @@ public class Teacherimpl implements TeacherService {
             if (teachermapper.updateAuditStatus(id, 1, 2) > 0){
                 // 通过：恢复成绩 (status=1)，标记申诉通过 (appeal=2)
                 return true;
-            }else return false;
+            }else {
+                throw new RuntimeException("系统出现问题，请联系管理员");
+            }
         } else {
             if (teachermapper.updateAuditStatus(id, 0, 3) > 0){
                 // 驳回：维持无效 (status=0)，标记申诉驳回 (appeal=3)
                 return true;
-            }else return false;
+            }else {
+                throw new RuntimeException("系统出现问题，请联系管理员");
+            }
         }
     }
 
@@ -53,7 +57,6 @@ public class Teacherimpl implements TeacherService {
         } else if ("like".equals(type)) {
             content = "真棒！你的跑步成绩已达标，老师为你点赞！👍";
         }
-
         // 3. 入库
         teachermapper.insertMessage(teacherId, studentId, type, content);
     }
@@ -62,11 +65,9 @@ public class Teacherimpl implements TeacherService {
     public List<Rank> getMyStudents(Integer teacherId, String semester) {
         // 1. 先查老师自己，看他管哪些班
         User teacher = usermapper.selectUserById(teacherId);
-
         if (teacher == null || teacher.getClassname() == null || teacher.getClassname().isEmpty()) {
             return new ArrayList<>(); // 没分配班级，返回空列表
         }
-
         // 2. 把 "计科1班,计科2班" 转成 ["计科1班", "计科2班"]
         String[] classArray = teacher.getClassname().split(",");
         // 去除空格

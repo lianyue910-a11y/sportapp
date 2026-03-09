@@ -24,7 +24,7 @@ public class Studentimpl implements StudentService {
 
     @Override
     @Transactional
-    public String insertRunRecord(RunRecord runRecord) {
+    public RunRecord  insertRunRecord(RunRecord runRecord) {
         double distMeters = runRecord.getDistance().doubleValue() * 1000; // 公里转米
         int stepCount = runRecord.getStepCount();
         int duration = runRecord.getDuration();
@@ -65,13 +65,9 @@ public class Studentimpl implements StudentService {
         if (Studentmapper.insertRunRecord(runRecord) > 0) {
             String key = "rank:" + runRecord.getSemester();
             redisTemplate.opsForZSet().incrementScore(key, runRecord.getUserId().toString(), runRecord.getDistance().doubleValue());
-            if (runRecord.getStatus() == 1) {
-                return "上传成功，成绩有效";
-            } else {
-                return "上传成功，但系统判断异常";
-            }
+            return runRecord;
         } else {
-            return "上传失败";
+            throw new RuntimeException("系统出现问题，请联系管理员");
         }
     }
 
@@ -116,7 +112,6 @@ public class Studentimpl implements StudentService {
         }
         // 3. 去 MySQL 查这些人的名字
         List<User> userList = usermapper.selectListByIds(userIds);
-        System.out.println("userList"+ userList);
         // 4. 组装最终结果 (Rank)
         List<Rank> result = new ArrayList<>();
         int rankNum = 1;

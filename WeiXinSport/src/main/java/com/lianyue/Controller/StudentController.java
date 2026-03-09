@@ -3,6 +3,7 @@ package com.lianyue.Controller;
 import com.lianyue.Service.StudentService;
 import com.lianyue.Service.UserService;
 import com.lianyue.pojo.*;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.message.Message;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -19,21 +20,23 @@ public class StudentController {
     private UserService userService;
 
     @PostMapping("/run")
-    public Result run(@RequestBody RunRecord runRecord) {
+    public Result run(@RequestBody RunRecord runRecord, HttpServletRequest request) {
+        Integer userId = (Integer) request.getAttribute("userId");
+        runRecord.setUserId(Long.valueOf(userId));
         String msg = studentService.insertRunRecord(runRecord);
         return Result.success(msg);
 
     }
 
     @PostMapping("/history")
-    public Result getHistory(@RequestBody Map<String, Object> params) {
-        // 调用 Service 获取组装好的数据
-        Integer userId = (Integer) params.get("userId");
+    public Result getHistory(@RequestBody Map<String, Object> params, HttpServletRequest request) {
+        // 安全获取当前用户 ID
+        Integer userId = (Integer) request.getAttribute("userId");
         String semester = (String) params.get("semester");
         Map<String, Object> data = studentService.getHistoryData(userId, semester);
         if (data != null){
             return Result.success(data);
-        }else {
+        } else {
             return Result.error("没有数据");
         }
     }
@@ -50,14 +53,13 @@ public class StudentController {
     }
 
     @PostMapping("/selectUser")
-    public Result selectUser(@RequestBody User user ) {
-        Integer id = user.getId();
+    public Result selectUser(HttpServletRequest request) {
+        Integer id = (Integer) request.getAttribute("userId");
         User user1 = userService.selectUserById(id);
         if (user1 != null) {
             user1.setPassword(null);
             return Result.success(user1);
         } else {
-            //抛出异常，只要登陆了就一定存在
             return Result.error("用户不存在");
         }
     }
@@ -82,7 +84,8 @@ public class StudentController {
 
     // 1. 获取未读消息
     @GetMapping("/message/unread")
-    public Result getUnreadMsg(@RequestParam Integer userId) {
+    public Result getUnreadMsg(HttpServletRequest request) {
+        Integer userId = (Integer) request.getAttribute("userId");
         return Result.success(studentService.getUnreadMessages(userId));
     }
 

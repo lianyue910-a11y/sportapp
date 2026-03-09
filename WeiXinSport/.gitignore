@@ -39,3 +39,4 @@ target/
 node_modules/
 unpackage/
 dist/
+mysql-data/
