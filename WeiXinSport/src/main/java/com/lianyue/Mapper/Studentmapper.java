@@ -38,6 +38,16 @@ public interface Studentmapper {
             "AND semester = #{semester} " +
             "ORDER BY create_time DESC") // 按时间倒序，最近的在上面
     List<RunRecord> selectRunList(@Param("id") Integer id, @Param("semester") String semester);
+
+    @Select("SELECT u.id as userId, u.name,  u.class_name as className, " +
+            "SUM(r.distance) as totalDistance " +
+            "FROM run_record r " +
+            "LEFT JOIN sys_user u ON r.user_id = u.id " +
+            "WHERE r.semester = #{semester} AND r.status = 1 " +
+            "GROUP BY r.user_id " +
+            "ORDER BY totalDistance DESC " +
+            "LIMIT 50") // 只取前50名
+    List<Rank> calculateRealTimeRank(@Param("semester") String semester);
     //学生对跑步数据进行申诉
     @Update("UPDATE run_record SET appeal_status = #{status} WHERE id = #{id}")
     boolean updateAppealStatus(@Param("id") Integer id, @Param("status") Integer status);

@@ -7,6 +7,7 @@ import com.lianyue.pojo.SemesterConfig;
 import com.lianyue.pojo.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +22,7 @@ public class Adminimpl implements AdminService {
     @Autowired
     private Adminmapper adminMapper;
     @Autowired
-    private RedisTemplate redisTemplate;
+    private StringRedisTemplate redisTemplate;
     @Override
     public List<SemesterConfig> getSemesterList() {
         return adminMapper.selectSemesterList();
@@ -46,12 +47,12 @@ public class Adminimpl implements AdminService {
         // 2. 把指定学期置为 1
         adminMapper.setSemesterAsCurrent(id);
         // 3. 删除 Redis 缓存
-        redisTemplate.delete("sys:current_semester");
+        redisTemplate.delete("sys:semester");
     }
 
     @Override
     public SemesterConfig getCurrentSemester() {
-        String key = "sys:current_semester";
+        String key = "sys:semester";
         // 1. 先查 Redis
         String json = (String) redisTemplate.opsForValue().get(key);
         if (json != null) {
@@ -86,7 +87,7 @@ public class Adminimpl implements AdminService {
 
     @Override
     public List<User> getUserList(String keyword) {
-        // 如果 keyword 为 null，转为空字符串防止 SQL 报错 (视数据库而定，稳妥起见)
+        // 如果 keyword 为 null，转为空字符串防止 SQL 报错
         return adminMapper.selectUserList(keyword == null ? "" : keyword);
     }
 

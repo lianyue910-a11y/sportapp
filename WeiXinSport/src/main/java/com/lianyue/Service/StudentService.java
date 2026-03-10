@@ -11,7 +11,6 @@ import java.util.Map;
 public interface StudentService {
     //记录跑步数据
     String insertRunRecord(RunRecord runRecord);
-
     // 获取历史页面所有数据 (统计 + 列表)
     Map<String, Object> getHistoryData(Integer userId, String semester);
     //查询单次跑步详情

@@ -1,10 +1,12 @@
 package com.lianyue.Service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lianyue.Mapper.Studentmapper;
 import com.lianyue.Mapper.Usermapper;
 import com.lianyue.Service.StudentService;
 import com.lianyue.pojo.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
@@ -12,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class Studentimpl implements StudentService {
@@ -24,51 +27,55 @@ public class Studentimpl implements StudentService {
 
     @Override
     @Transactional
-    public RunRecord  insertRunRecord(RunRecord runRecord) {
-        double distMeters = runRecord.getDistance().doubleValue() * 1000; // 公里转米
-        int stepCount = runRecord.getStepCount();
+    public String insertRunRecord(RunRecord runRecord) {
+        // 1. 基础校验 (报错直接抛出，由全局异常拦截器变成 Result.error 的 msg返回)
         int duration = runRecord.getDuration();
         if (duration <= 0) {
-            return "时间异常";
+            throw new RuntimeException("运动时间异常，数据无效");
         }
-        double speed = distMeters / duration; // 米每秒
-        // 步幅校验
-        double stride = distMeters / stepCount; // 平均步幅
-        if (stride > 2.0) {
-            // 步幅超过2米？正常人跑步步幅0.7-1.2米
-            // 判定为：骑车 (因为有距离但没步数)
-            runRecord.setStatus(0); // 标记为无效
-            runRecord.setAppealStatus(0);// 标记为申诉中
-            runRecord.setInvalidReason("步幅异常，疑似骑行");
-        }
-        // B. 规则判定
-        if (distMeters < 5) {
-            // 规则1：距离太短 (小于500米)
-            runRecord.setStatus(0); // 标记为无效
-            runRecord.setAppealStatus(0);// 标记为申诉中
-            runRecord.setInvalidReason("距离不足500米");
+        double distMeters = runRecord.getDistance().doubleValue() * 1000;
+        int stepCount = runRecord.getStepCount() == null ? 0 : runRecord.getStepCount();
+        double speed = distMeters / duration;
+        // 默认先假设这条记录是正常的
+        runRecord.setStatus(1);
+        runRecord.setInvalidReason(null);
+        runRecord.setAppealStatus(null);
+        // 2. 核心规则校验
+        if (distMeters < 500) {
+            markAsInvalid(runRecord, "距离不足500米");
         } else if (speed > 10) {
-            // 规则2：速度太快 (超过10m/s，可能是骑车)
-            runRecord.setStatus(0);
-            runRecord.setAppealStatus(0);// 标记为申诉中
-            runRecord.setInvalidReason("配速异常，疑似骑行");
+            markAsInvalid(runRecord, "配速异常，疑似骑行");
         } else if (speed < 1) {
-            // 规则3：速度太慢 (单纯走路或没动)
-            runRecord.setStatus(0);
-            runRecord.setAppealStatus(0);// 标记为申诉中
-            runRecord.setInvalidReason("配速过慢，未达到跑步标准");
-        } else {
-            // C. 通过检查
-            runRecord.setStatus(1); // 有效
-            runRecord.setInvalidReason(null);
+            markAsInvalid(runRecord, "配速过慢，未达到跑步标准");
+        } else if (stepCount == 0 || (distMeters / stepCount) > 2.0) {
+            markAsInvalid(runRecord, "步幅异常，疑似代跑或骑行");
         }
+        // 3. 插入数据库
         if (Studentmapper.insertRunRecord(runRecord) > 0) {
-            String key = "rank:" + runRecord.getSemester();
-            redisTemplate.opsForZSet().incrementScore(key, runRecord.getUserId().toString(), runRecord.getDistance().doubleValue());
-            return runRecord;
+            // 4. 判断存入的是有效记录还是无效记录
+            if (runRecord.getStatus() == 1) {
+                // 有效：加进 Redis 排行榜，返回成功提示
+                String key = "rank:" + runRecord.getSemester();
+                redisTemplate.opsForZSet().incrementScore(
+                        key,
+                        runRecord.getUserId().toString(),
+                        runRecord.getDistance().doubleValue()
+                );
+                return "提交成功，跑步记录已生效！";
+            } else {
+                // 无效：不加分，但告诉用户原因
+                return "记录已保存，但判定无效：" + runRecord.getInvalidReason(); //返回提示语
+            }
         } else {
-            throw new RuntimeException("系统出现问题，请联系管理员");
+            throw new RuntimeException("系统存储失败，请联系管理员");
         }
+    }
+
+    // 辅助方法
+    private void markAsInvalid(RunRecord record, String reason) {
+        record.setStatus(0);
+        record.setAppealStatus(0);
+        record.setInvalidReason(reason);
     }
 
     @Override
@@ -86,13 +93,13 @@ public class Studentimpl implements StudentService {
 
     @Override
     public RunRecord selectDetail(Integer id) {
-        return  Studentmapper.selectDetail(id);
+        return Studentmapper.selectDetail(id);
     }
 
     @Override
     public List<Rank> selectRank(String semester) {
         String key = "rank:" + semester;
-        System.out.println("key"+ key);
+        System.out.println("key" + key);
         // 1. 从 Redis 取前 50 名 (按分数从高到低)
         // Tuple 包含: value(学生ID) 和 score(总里程)
         Set<ZSetOperations.TypedTuple<String>> topStudents =
@@ -131,7 +138,6 @@ public class Studentimpl implements StudentService {
         }
         return result;
     }
-
     @Override
     public boolean updateAppealStatus(Integer id, Integer status) {
         return Studentmapper.updateAppealStatus(id, status);
