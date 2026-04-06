@@ -39,7 +39,7 @@ public class UserController {
     @PostMapping("/register")
     public Result register(@RequestBody User user) {
         //判断账号是否已经注册过
-        boolean user1 = userService.selectUsername(user.getUsername(user));
+        boolean user1 = userService.selectUsername(user.getUsername());
         if (user1){
             return Result.error("用户已存在");
         }else {
@@ -68,4 +68,5 @@ public class UserController {
         userService.updatePassword(userId, oldPassword, newPassword);
         return Result.success("修改成功，请重新登录");
     }
+
 }

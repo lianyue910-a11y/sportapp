@@ -2,7 +2,6 @@ package com.lianyue.pojo;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.NoArgsConstructor;
 
 
@@ -26,7 +25,7 @@ public class User {
         this.id = id;
     }
 
-    public String getUsername(User user) {
+    public String getUsername() {
         return username;
     }
 

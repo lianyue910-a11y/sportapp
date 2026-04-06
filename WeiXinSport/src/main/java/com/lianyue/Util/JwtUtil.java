@@ -8,11 +8,31 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class JwtUtil {
-    //秘钥
-    private static final String SECRET_KEY = "LianYue@Sport#2026";
+    // 秘钥 - 从配置读取
+    private static volatile String SECRET_KEY = "LianYue@Sport#2026";
 
-    //过期时间：12小时 (毫秒单位)
-    private static final long EXPIRE_TIME = 12 * 60 * 60 * 1000;
+    // 过期时间：12小时 (毫秒单位)
+    private static volatile long EXPIRE_TIME = 12 * 60 * 60 * 1000;
+
+    /**
+     * 设置JWT秘钥（由SecurityConfig在应用启动时调用）
+     * @param secretKey 秘钥
+     */
+    public static synchronized void setSecretKey(String secretKey) {
+        if (secretKey != null && !secretKey.trim().isEmpty()) {
+            SECRET_KEY = secretKey;
+        }
+    }
+
+    /**
+     * 设置JWT过期时间（由SecurityConfig在应用启动时调用）
+     * @param expireTime 过期时间（毫秒）
+     */
+    public static synchronized void setExpireTime(long expireTime) {
+        if (expireTime > 0) {
+            EXPIRE_TIME = expireTime;
+        }
+    }
 
     /**
      * 生成 Token
@@ -32,6 +52,7 @@ public class JwtUtil {
                 .signWith(SignatureAlgorithm.HS256, SECRET_KEY) // 签名算法
                 .compact();
     }
+
     /**
      * 解析 Token
      * @param token 前端传来的字符串

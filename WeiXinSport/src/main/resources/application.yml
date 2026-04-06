@@ -1,17 +1,36 @@
 spring:
+  config:
+    import: "optional:file:.env[.properties]"
   application:
     name: WeiXinSport
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/sportapp
-    username: root
-    password: 123456
+    url: ${DATABASE_URL:jdbc:mysql://localhost:3306/sportapp}
+    username: ${DATABASE_USERNAME:root}
+    password: ${DATABASE_PASSWORD:123456}
   data:
     redis:
-      host: 127.0.0.1
-      port: 6379
-      database: 0
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
 mybatis:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     map-underscore-to-camel-case: true
+#
+## JWT配置（通过环境变量读取）
+jwt:
+  secret-key: ${JWT_SECRET_KEY:asdfgh}
+  expire-hours: ${JWT_EXPIRE_HOURS:33}
+#
+## 密码加密配置
+password:
+  salt: ${PASSWORD_SALT:gdut@sport#2026}
+#
+## 服务端口
+server:
+  port: ${SERVER_PORT:8080}
+
+logging:
+  level:
+    me.paulschwarz: DEBUG

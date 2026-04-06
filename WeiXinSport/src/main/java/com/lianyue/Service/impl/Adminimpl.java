@@ -3,10 +3,10 @@ package com.lianyue.Service.impl;
 import com.alibaba.fastjson.JSON;
 import com.lianyue.Mapper.Adminmapper;
 import com.lianyue.Service.AdminService;
+import com.lianyue.Util.Md5;
 import com.lianyue.pojo.SemesterConfig;
 import com.lianyue.pojo.User;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -54,7 +55,7 @@ public class Adminimpl implements AdminService {
     public SemesterConfig getCurrentSemester() {
         String key = "sys:semester";
         // 1. 先查 Redis
-        String json = (String) redisTemplate.opsForValue().get(key);
+        String json = redisTemplate.opsForValue().get(key);
         if (json != null) {
             // 缓存命中：直接转成对象返回
             return JSON.parseObject(json, SemesterConfig.class);
@@ -93,7 +94,9 @@ public class Adminimpl implements AdminService {
 
     @Override
     public void resetUserPassword(Integer userId, String newPassword) {
-        adminMapper.updatePassword(userId, newPassword);
+        // 加密密码后再存储
+        String encryptedPassword = Md5.encrypt(newPassword);
+        adminMapper.updatePassword(userId, encryptedPassword);
     }
 
     @Override
@@ -103,11 +106,22 @@ public class Adminimpl implements AdminService {
 
     @Override
     public void addUser(User user) {
-        // 默认逻辑处理：如果没填密码，给默认值
-        if (user.getPassword() == null || user.getPassword().isEmpty()) {
-            user.setPassword("123456");
+        // 处理密码：如果没填密码，生成随机密码
+        String rawPassword = user.getPassword();
+        if (rawPassword == null || rawPassword.isEmpty()) {
+            // 生成8位随机密码（字母+数字）
+            rawPassword = UUID.randomUUID().toString().replaceAll("-", "").substring(0, 8);
+            user.setPassword(rawPassword);
         }
+
+        // 加密密码后再存储
+        String encryptedPassword = Md5.encrypt(rawPassword);
+        user.setPassword(encryptedPassword);
+
         adminMapper.insertUser(user);
+
+        // 存储原始密码用于返回给管理员（实际项目中应该通过安全渠道发送）
+        user.setPassword(rawPassword); // 将原始密码设置回对象，供Controller返回
     }
 
     @Override

@@ -6,17 +6,21 @@ services:
     image: mysql:5.7
     container_name: sport-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: 123456  # 数据库密码
-      MYSQL_DATABASE: sportapp     # 数据库名
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}  # 数据库root密码，从环境变量读取
+      MYSQL_DATABASE: sportapp
       TZ: Asia/Shanghai
     ports:
-      - "3307:3307"
+      - "3306:3306"
     volumes:
       # 挂载初始化脚本
       - ./sql:/docker-entrypoint-initdb.d
       # 数据持久化 (防止重启丢数据)
       - ./mysql-data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
 
   # ---------------- Redis 服务 ----------------
   redis:
@@ -28,22 +32,46 @@ services:
       - ./redis-data:/data # 持久化
     # 开启持久化存储 (AOF)
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ---------------- Java 后端 ----------------
   backend:
     build: .  # 使用当前目录的 Dockerfile 构建镜像
     container_name: sport-backend
     ports:
-      - "8080:8080"
+      - "${SERVER_PORT:-8080}:8080"
     environment:
-      # 覆盖 application.yml 里的配置
-      # 数据库地址写服务名 'mysql'
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/sportapp?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: 123456
-      # Redis 地址写服务名 'redis'
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
+      # 数据库配置 - 从环境变量读取
+      DATABASE_URL: jdbc:mysql://mysql:3306/sportapp?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-root}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-${MYSQL_ROOT_PASSWORD:-123456}}
+
+      # Redis配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DATABASE: 0
+
+      # JWT配置（生产环境必须设置）
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      JWT_EXPIRE_HOURS: ${JWT_EXPIRE_HOURS:-12}
+
+      # 密码加密盐值
+      PASSWORD_SALT: ${PASSWORD_SALT:-}
+
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
     depends_on:
-      - mysql  # 等数据库启了再启后端
-      - redis  # 等Redis启了再启后端
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
